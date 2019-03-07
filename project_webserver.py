@@ -21,7 +21,7 @@ class DB:
     def __del__(self):
         self.conn.close()
 
-db = DB("news.db")
+db = DB("project.db")
 
 class NewsModel:
     def __init__(self, connection):
