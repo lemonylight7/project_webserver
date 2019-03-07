@@ -1,0 +1,21 @@
+{% extends "project_base.html" %}
+
+{% block content %}
+    <img src="{{session['main_photo']}}" alt="здесь должна была быть картинка, но не нашлась" class="img-circle">
+    <h1>{{session['username']}}</h1>
+    <div class="text-center">
+        <div class="btn-group">
+            <a href="/load_photo" class="btn btn-outline-primary btn-lg mb-4 rounded" role="button">Добавить фото</a>
+            <a href="/load_photo" class="btn btn-outline-primary btn-lg mb-4 ml-5 rounded" role="button">Редактировать информацию</a>
+            {% if session['admin'] == 1 %}
+                <a href="/admin" class="btn btn-outline-primary btn-lg mb-4 ml-4 rounded" role="button">Статистика</a>
+            {% endif %}
+        </div>
+    </div>
+        <p>
+    <div class="text-center">
+    {% for new in news %}
+        <img src={{new['photo']}} alt="здесь должна была быть картинка, но не нашлась" class="img-fluid mr-4 mb-4 text-center">
+    {% endfor %}
+    </div>
+{% endblock %}
