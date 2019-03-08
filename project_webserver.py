@@ -1,169 +1,52 @@
-from flask import Flask, session, redirect, request, render_template, flash, url_for
-from flask_wtf import FlaskForm
+from flask import Flask, session, redirect, request, render_template, flash, url_for, jsonify
 from flask_wtf.file import FileRequired
-from wtforms import StringField, BooleanField, SubmitField, TextAreaField, PasswordField, FileField
-from wtforms.validators import DataRequired, EqualTo
-import json
-import sqlite3
+from flask_restful import reqparse, abort, Api, Resource
 from datetime import datetime
+from werkzeug import secure_filename
+from db import DB, PostsModel, UsersModel
+from project_forms import LoginForm, RegisterForm, UploadPhotoForm
+from PIL import Image
+import os
 
 app = Flask(__name__)
+api = Api(app)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
-
-class DB:
-    def __init__(self, db_file):
-        conn = sqlite3.connect(db_file, check_same_thread=False)
-        self.conn = conn
-
-    def get_connection(self):
-        return self.conn
-
-    def __del__(self):
-        self.conn.close()
 
 db = DB("project.db")
 
-class NewsModel:
-    def __init__(self, connection):
-        self.connection = connection
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' and name='news'")
-        row = cursor.fetchone()
-        if row is None:
-            self.init_table()
+def make_thumbnail(infile, outfile):
+    im = Image.open(infile)
+    xsize, ysize = im.size
+    print(xsize, ysize)
+    if xsize > ysize:
+        crop_size = (xsize/2 - ysize/2, 0, xsize/2 + ysize/2, ysize)
+        print('horizontal', (xsize/2 - ysize/2, 0, xsize/2 + ysize/2, ysize))
+    else:
+        crop_size = (0, ysize/2 - xsize/2, xsize, ysize/2 + xsize/2)
+        print('vertical', (0, ysize/2 - xsize/2, xsize, ysize/2 + xsize/2))
+    im = im.crop(box=crop_size)
+    im.thumbnail((300, 300))
+    im.save(outfile)
 
-    def init_table(self):
-        cursor = self.connection.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS news
-                            (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                             title VARCHAR(100),
-                             photo TEXT,
-                             user_id INTEGER,
-                             pub_date INTEGER
-                             )''')
-        cursor.close()
-        self.connection.commit()
+def abort_if_post_not_found(post_id):
+    if not PostsModel(db.get_connection()).get(post_id):
+        abort(404, message="Post {} not found".format(post_id))
 
-    def insert(self, title, photo, user_id):
-        cursor = self.connection.cursor()
-        pub_date = round(datetime.timestamp(datetime.now()))
-        cursor.execute('''INSERT INTO news
-                          (title, photo, user_id, pub_date)
-                          VALUES (?,?,?,?)''', (title, photo, str(user_id), pub_date))
-        cursor.close()
-        self.connection.commit()
+class Posts(Resource):
+    def get(self, post_id):
+        abort_if_post_not_found(post_id)
+        post = PostsModel(db.get_connection()).get(post_id)
+        return jsonify({'post': post})
 
-    def get(self, news_id):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT * FROM news WHERE id = ?", (str(news_id),))
-        row = cursor.fetchone()
-        return row
+    def delete(self, post_id):
+        abort_if_post_not_found(post_id)
+        PostsModel(db.get_connection()).delete(post_id)
+        return jsonify({'success': 'OK'})
 
-    def get_all(self, user_id=None, sort='0'):
-        if sort == '0':
-            order = ' ORDER BY pub_date DESC'
-        else:
-            order = ' ORDER BY title'
-        cursor = self.connection.cursor()
-        if user_id:
-            cursor.execute("SELECT * FROM news WHERE user_id = ?" + order,
-                           (str(user_id),))
-        else:
-            cursor.execute("SELECT * FROM news" + order)
-        rows = cursor.fetchall()
-        return rows
-
-    def delete(self, news_id):
-        cursor = self.connection.cursor()
-        cursor.execute('''DELETE FROM news WHERE id = ?''', (str(news_id),))
-        cursor.close()
-        self.connection.commit()
-
-
-class UsersModel:
-    def __init__(self, connection):
-        self.connection = connection
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' and name='users'")
-        row = cursor.fetchone()
-        if row is None:
-            self.init_table()
-
-
-    def init_table(self):
-        cursor = self.connection.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                            (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                             user_name VARCHAR(50),
-                             password_hash VARCHAR(128),
-                             admin INTEGER,
-                             main_photo TEXT
-                             )''')
-        cursor.execute('''INSERT INTO users (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', ('ermakova', 'pass', 0, 'no_photo.png'))
-        cursor.execute('''INSERT INTO users (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', ('avokamre', 'ssap', 0, 'no_photo.png'))
-        cursor.close()
-        self.connection.commit()
-
-    def insert(self, user_name, password_hash):
-        cursor = self.connection.cursor()
-        cursor.execute('''INSERT INTO users
-                          (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', (user_name, password_hash, 0, 'no_photo.png'))
-        cursor.close()
-        self.connection.commit()
-
-    def get(self, user_id):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE id = ?", (str(user_id),))
-        row = cursor.fetchone()
-        return row
-
-    def get_by_name(self, user_name):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE user_name = ?", (user_name,))
-        row = cursor.fetchone()
-        return row
-
-    def get_all(self):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT * FROM users")
-        rows = cursor.fetchall()
-        return rows
-
-    def exists(self, user_name, password_hash):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE user_name = ? AND password_hash = ?",
-                       (user_name, password_hash))
-        row = cursor.fetchone()
-        return (True, row[0]) if row else (False,)
-
-
-class LoginForm(FlaskForm):
-    username = StringField('Логин', validators=[DataRequired()])
-    password = PasswordField('Пароль', validators=[DataRequired()])
-    submit = SubmitField('Войти')
-
-class NewsForm(FlaskForm):
-    title = StringField('Заголовок новости', validators=[DataRequired()])
-    content = TextAreaField('Текст новости', validators=[DataRequired()])
-    submit = SubmitField('Добавить')
-
-class RegisterForm(FlaskForm):
-    username = StringField('Логин', validators=[DataRequired(message='Поле не должно быть пустым')])
-    password = PasswordField('Введите пароль', [DataRequired(message='Поле не должно быть пустым'),
-        EqualTo('confirm', message='Пароли должны совпадать')])
-    confirm = PasswordField('Повторите пароль', validators=[DataRequired(message='Поле не должно быть пустым')])
-    submit = SubmitField('Зарегистрироваться')
-
-class LoadPhotoForm(FlaskForm):
-    photo = FileField('Загрузите фото')
-    descrypt = TextAreaField('Текст новости', validators=[DataRequired()])
-    submit = SubmitField('Загрузить')
+api.add_resource(Posts, '/api/posts/<int:post_id>')
 
 @app.route('/login', methods=['GET', 'POST'])
-def diaries_login():
+def login():
     form = LoginForm()
     login_error = ''
     if form.validate_on_submit():
@@ -174,7 +57,6 @@ def diaries_login():
             session['username'] = users.get(user[1])[1]
             session['admin'] = users.get(user[1])[3]
             session['main_photo'] = url_for('static', filename='img/' + users.get(user[1])[4])
-            print()
             session['sort'] = 0
             return redirect('/')
         else:
@@ -182,26 +64,26 @@ def diaries_login():
     return render_template('project_login.html', title='Личные дневники', form=form, login_error=login_error)
 
 @app.route('/')
-def diaries_index():
+def index():
     if "username" not in session:
         return redirect('/login')
-    news = NewsModel(db.get_connection())
-    all_news = []
-    for i in news.get_all(session['userid'], session['sort']):
-        all_news.append({'pub_date': datetime.fromtimestamp(i[4]).strftime('%d.%m.%Y %H:%M'),
-                         'title': i[1], 'photo': url_for('static', filename='img/' + i[2]), 'nid': i[0]})
-    return render_template('project_index.html', title='Instagram', news=all_news)
+    posts = PostsModel(db.get_connection())
+    all_posts = []
+    for i in posts.get_all(session['userid']):
+        all_posts.append({'pub_date': datetime.fromtimestamp(i[5]).strftime('%d.%m.%Y %H:%M'),
+                         'title': i[1], 'thumb': i[3], 'nid': i[0]})
+    return render_template('project_index.html', title='Instagram', posts=all_posts)
 
-@app.route('/del_news/<nid>')
-def diaries_del_news(nid):
+@app.route('/del_post/<nid>')
+def del_post(pid):
     if "username" not in session:
         return redirect('/login')
-    news = NewsModel(db.get_connection())
-    news.delete(nid)
+    posts = PostsModel(db.get_connection())
+    posts.delete(pid)
     return redirect('/')
 
 @app.route('/registration', methods=['GET', 'POST'])
-def diaries_register():
+def register():
     form = RegisterForm()
     if form.validate_on_submit():
         users = UsersModel(db.get_connection())
@@ -211,46 +93,38 @@ def diaries_register():
     return render_template('project_register.html', title='Личные дневники', form=form)
 
 @app.route('/admin')
-def diaries_admin():
+def admin():
     if "username" not in session or session['admin'] != 1:
         flash('Доступ запрещен', 'danger')
         return redirect('/')
-    news = NewsModel(db.get_connection())
-    all_news = news.get_all()
-    users = UsersModel(db.get_connection())
-    stats = {}
-    usernames = {}
-    for i in all_news:
-        if i[3] in stats:
-            stats[i[3]] += 1
-        else:
-            stats[i[3]] = 1
-            usernames[i[3]] = users.get(i[3])[1]
-    return render_template('project_admin.html', title='Статистика пользователей',
-                           stats=stats, names=usernames)
+    return render_template('project_admin.html', title='Страница адмнистратора')
 
-@app.route('/sort/<sort>')
-def change_sort(sort):
+@app.route('/upload_photo', methods=['GET', 'POST'])
+def upload_photo():
     if "username" not in session:
         return redirect('/login')
-    session['sort'] = sort
-    return redirect('/')
-
-@app.route('/load_photo', methods=['GET', 'POST'])
-def load_photo():
-    if "username" not in session:
-        return redirect('/login')
-    form = LoadPhotoForm()
+    form = UploadPhotoForm()
     if form.validate_on_submit():
-        news = NewsModel(db.get_connection())
+        f = request.files['file']
+        save_filename = "static/img/usr_{0}/{1}_{2}".format(
+            session['userid'], round(datetime.timestamp(datetime.now())), secure_filename(f.filename)
+        )
+        thmb_filename = "static/img/usr_{0}/thmb/{1}_{2}".format(
+            session['userid'], round(datetime.timestamp(datetime.now())), secure_filename(f.filename)
+        )
+        print(save_filename)
+        os.makedirs('static/img/usr_{}'.format(session['userid']), exist_ok=True)
+        os.makedirs('static/img/usr_{}/thmb'.format(session['userid']), exist_ok=True)
+        f.save(save_filename)
+        make_thumbnail(save_filename, thmb_filename)
+        posts = PostsModel(db.get_connection())
         print(form.descrypt.data)
-        news.insert(form.descrypt.data, form.photo.data, session['userid'])
+        posts.insert(form.descrypt.data, save_filename, thmb_filename, session['userid'])
         return redirect('/')
     return render_template('project_add_photos.html', form=form)
 
-
 @app.route('/logout')
-def diaries_logout():
+def logout():
     session.pop('username', None)
     session.pop('userid', None)
     session.pop('admin', None)
