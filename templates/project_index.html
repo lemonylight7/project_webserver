@@ -1,21 +1,34 @@
 {% extends "project_base.html" %}
 
 {% block content %}
-    <img src="{{session['main_photo']}}" alt="здесь должна была быть картинка, но не нашлась" class="img-circle">
-    <h1>{{session['username']}}</h1>
-    <div class="text-center">
-        <div class="btn-group">
-            <a href="/load_photo" class="btn btn-outline-primary btn-lg mb-4 rounded" role="button">Добавить фото</a>
-            <a href="/load_photo" class="btn btn-outline-primary btn-lg mb-4 ml-5 rounded" role="button">Редактировать информацию</a>
-            {% if session['admin'] == 1 %}
-                <a href="/admin" class="btn btn-outline-primary btn-lg mb-4 ml-4 rounded" role="button">Статистика</a>
-            {% endif %}
+
+    <div id="mainPageCarousel" class="carousel slide" data-ride="carousel" data-interval="false" data-keyboard="true">
+      <div class="carousel-inner">
+        <div class="carousel-item active" id="carousel-item-parent">
+            <img src="{{session['main_photo']}}" alt="здесь должна была быть картинка, но не нашлась" id="main-photo" class="ml-5">
+            <span class="h1 ml-3">{{session['username']}}</span>
+            <div class="text-center">
+                <div class="btn-group">
+                    <a href="/upload_photo" class="btn btn-outline-primary btn-lg mb-4 rounded" role="button">Добавить фото</a>
+                    <a href="/profile" class="btn btn-outline-primary btn-lg mb-4 ml-5 rounded" role="button">Редактировать профиль</a>
+                </div>
+            </div>
+
+            <div class="text-center">
+            {% for post in posts %}
+                <img src={{post['thumb']}} alt="здесь должна была быть картинка, но не нашлась" id="img-list-item" class="mr-4 mb-4" onclick="show_post({{post['nid']}})">
+            {% endfor %}
+            </div>
         </div>
-    </div>
-        <p>
-    <div class="text-center">
-    {% for new in news %}
-        <img src={{new['photo']}} alt="здесь должна была быть картинка, но не нашлась" class="img-fluid mr-4 mb-4 text-center">
-    {% endfor %}
+
+        <div class="carousel-item" id="carousel-item-child">
+            <div class="text-left align-middle">
+                <i class="fas fa-long-arrow-alt-left fa-2x align-middle" id="back-arrow" onclick="back2parent()"></i>
+                <img src="{{session['main_photo']}}" alt="здесь должна была быть картинка, но не нашлась" id="main-photo-child" class="ml-4 mb-4 mt-4">
+                <span class="h3 ml-2">{{session['username']}}</span>
+            </div>
+            <div id="child-img"></div>
+        </div>
+      </div>
     </div>
 {% endblock %}

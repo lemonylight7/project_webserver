@@ -6,14 +6,41 @@
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
   <title>{{title}}</title>
   <style>
-  h1 {
-    margin-bottom: 30px
-  }
-  .img-fluid {
-  width: 300px;
-  height: 300px;
-}
+    h1 {
+        margin-bottom: 30px
+    }
+    #img-list-item {
+        width: 300px;
+        height: 300px;
+        cursor: pointer;
+    }
+    #main-photo {
+        max-height: 150px;
+        clip-path: circle(45%);
+    }
+    #main-photo-child {
+        max-height: 50px;
+        clip-path: circle(50%);
+    }
+    #back-arrow{
+        cursor: pointer;
+    }
   </style>
+  <script>
+      function show_post(pid){
+        $("#carousel-item-parent").removeClass('active');
+        $("#carousel-item-child").addClass('active');
+        $.get( "/api/posts/"+pid, function( r ) {
+            console.log( r );
+            $("#child-img").html('<img src="' + r['post'][2] + '" alt="здесь должна была быть картинка, но не нашлась" class="img-fluid">');
+         });
+        //
+      }
+      function back2parent(){
+        $("#carousel-item-parent").addClass('active');
+        $("#carousel-item-child").removeClass('active');
+      }
+  </script>
 </head>
   <body>
     <header>
@@ -21,9 +48,9 @@
         <a class="navbar-brand" href="/">Instagram</a>
 {% if "username" in session %}
           <form class="form-inline my-2 my-lg-0">
-      <input class="form-control mr-sm-2" type="search" placeholder="Найти пользователя" aria-label="Найти пользователя">
-      <button class="btn btn-outline-primary my-2 my-sm-0" type="submit">Найти</button>
-            </form>
+              <input class="form-control mr-sm-2" type="search" placeholder="Найти пользователя" aria-label="Найти пользователя">
+              <button class="btn btn-outline-primary my-2 my-sm-0" type="submit">Найти</button>
+          </form>
           <ul class="navbar-nav flex-row ml-md-auto d-none d-md-flex"></ul>
         <a class="navbar-brand" href="/">{{session['username']}}
         {% if session['admin'] == 1 %}(admin){% endif %}
@@ -44,8 +71,9 @@
         {% endwith %}
         {% block content %}{% endblock %}
     </main>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script defer src="https://use.fontawesome.com/releases/v5.7.2/js/all.js" integrity="sha384-0pzryjIRos8mFBWMzSSZApWtPl/5++eIfzYmTgBBmXYdhvxPc+XcFEk+zJwDgWbP" crossorigin="anonymous"></script>
   </body>
 </html>
