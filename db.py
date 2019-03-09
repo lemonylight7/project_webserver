@@ -166,3 +166,54 @@ class SubsModel:
         row = cursor.fetchall()
         return row
 
+
+class LikesModel:
+    def __init__(self, connection):
+        self.connection = connection
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' and name='likes'")
+        row = cursor.fetchone()
+        if row is None:
+            self.init_table()
+
+    def init_table(self):
+        cursor = self.connection.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS likes
+                            (
+                             post_id INTEGER,
+                             user_id INTEGER
+                             )''')
+        cursor.close()
+        self.connection.commit()
+
+    def insert(self, post_id, user_id):
+        cursor = self.connection.cursor()
+        pub_date = round(datetime.timestamp(datetime.now()))
+        cursor.execute('''INSERT INTO likes
+                          (post_id, user_id)
+                          VALUES (?,?)''', (str(post_id), str(user_id)))
+        cursor.close()
+        self.connection.commit()
+
+    def get_count(self, post_id):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT count() FROM likes WHERE post_id = ?", (str(post_id),))
+        row = cursor.fetchone()
+        return row[0]
+
+    def get_your(self, post_id, user_id):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT 1 FROM likes WHERE post_id = ? and user_id = ?",
+                           (str(post_id), str(user_id)))
+        rows = cursor.fetchone()
+        if rows is None:
+            return 0
+        else:
+            return 1
+
+    def delete(self, post_id, user_id):
+        cursor = self.connection.cursor()
+        cursor.execute('''DELETE FROM likes WHERE post_id = ? and user_id = ?''',
+                            (str(post_id),str(user_id)))
+        cursor.close()
+        self.connection.commit()
