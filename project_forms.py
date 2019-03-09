@@ -4,8 +4,8 @@ from wtforms import StringField, SubmitField, TextAreaField, PasswordField, File
 from wtforms.validators import DataRequired, EqualTo
 
 class LoginForm(FlaskForm):
-    username = StringField('Логин', validators=[DataRequired()])
-    password = PasswordField('Пароль', validators=[DataRequired()])
+    username = StringField('Логин', validators=[DataRequired(message='Поле не должно быть пустым')])
+    password = PasswordField('Пароль', validators=[DataRequired(message='Поле не должно быть пустым')])
     submit = SubmitField('Войти')
 
 class RegisterForm(FlaskForm):
