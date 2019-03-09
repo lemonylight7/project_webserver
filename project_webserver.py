@@ -3,7 +3,7 @@ from flask_wtf.file import FileRequired
 from flask_restful import reqparse, abort, Api, Resource
 from datetime import datetime
 from werkzeug import secure_filename
-from db import DB, PostsModel, UsersModel
+from db import DB, PostsModel, UsersModel, LikesModel
 from project_forms import LoginForm, RegisterForm, UploadPhotoForm
 from PIL import Image
 import os
@@ -45,6 +45,27 @@ class Posts(Resource):
 
 api.add_resource(Posts, '/api/posts/<int:post_id>')
 
+class Likes(Resource):
+    def get(self, post_id):
+        abort_if_post_not_found(post_id)
+        count = LikesModel(db.get_connection()).get_count(post_id)
+        your = LikesModel(db.get_connection()).get_your(post_id, session['userid'])
+        return jsonify({'count': count, 'your': your})
+
+    def post(self, post_id):
+        abort_if_post_not_found(post_id)
+        LikesModel(db.get_connection()).insert(post_id, session['userid'])
+        count = LikesModel(db.get_connection()).get_count(post_id)
+        return jsonify({'count': count})
+
+    def delete(self, post_id):
+        abort_if_post_not_found(post_id)
+        LikesModel(db.get_connection()).delete(post_id, session['userid'])
+        count = LikesModel(db.get_connection()).get_count(post_id)
+        return jsonify({'count': count})
+
+api.add_resource(Likes, '/api/likes/<int:post_id>')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
@@ -71,15 +92,19 @@ def index():
     all_posts = []
     for i in posts.get_all(session['userid']):
         all_posts.append({'pub_date': datetime.fromtimestamp(i[5]).strftime('%d.%m.%Y %H:%M'),
-                         'title': i[1], 'thumb': i[3], 'nid': i[0]})
+                         'title': i[1], 'thumb': i[3], 'userid': i[4], 'pid': i[0]})
     return render_template('project_index.html', title='Instagram', posts=all_posts)
 
-@app.route('/del_post/<nid>')
+@app.route('/del_post/<pid>')
 def del_post(pid):
     if "username" not in session:
         return redirect('/login')
     posts = PostsModel(db.get_connection())
-    posts.delete(pid)
+    post = posts.get(pid)
+    if post[4] == session['userid']:
+        posts.delete(pid)
+    else:
+        flash('Доступ запрещен', 'danger')
     return redirect('/')
 
 @app.route('/registration', methods=['GET', 'POST'])
@@ -87,9 +112,12 @@ def register():
     form = RegisterForm()
     if form.validate_on_submit():
         users = UsersModel(db.get_connection())
-        users.insert(form.username.data, form.password.data)
-        flash('Спасибо за регистрацию', 'success')
-        return redirect('/login')
+        if not users.get_by_name(form.username.data):
+            users.insert(form.username.data, form.password.data)
+            flash('Спасибо за регистрацию', 'success')
+            return redirect('/login')
+        else:
+            form.username.errors.append('Пользователь с таким именем уже существует')
     return render_template('project_register.html', title='Личные дневники', form=form)
 
 @app.route('/admin')
