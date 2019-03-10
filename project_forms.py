@@ -19,3 +19,10 @@ class UploadPhotoForm(FlaskForm):
     file = FileField('Загрузите фото', validators=[FileRequired(message='Поле не должно быть пустым')])
     descrypt = TextAreaField('Описание')
     submit = SubmitField('Загрузить')
+
+class ChangeInfoForm(FlaskForm):
+    main_photo = FileField('Изменить главное фото')
+    user_name = StringField('Изменить имя')
+    password_hash = PasswordField('Введите новый пароль', validators=[EqualTo('confirm', message='Пароли должны совпадать')])
+    confirm = PasswordField('Повторите пароль')
+    submit = SubmitField('Сохранить изменения')
