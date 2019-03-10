@@ -1,138 +1,197 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-  <title>{{title}}</title>
-  <style>
-    h1 {
-        margin-bottom: 30px
-    }
-    #img-list-item {
-        width: 300px;
-        height: 300px;
-        cursor: pointer;
-    }
-    #main-photo {
-        max-height: 150px;
-        clip-path: circle(43%);
-    }
-    #main-photo-child {
-        max-height: 50px;
-        clip-path: circle(50%);
-    }
-    #back-arrow{
-        cursor: pointer;
-    }
-    .cursor-pointer {
-        cursor: pointer;
-    }
-  </style>
-  <script>
-      function show_post(pid){
-        $("#carousel-item-parent").removeClass('active');
-        $("#carousel-item-child").addClass('active');
-        $.get( "/api/posts/"+pid, function( r ) {
-            $("#child-img").html('<img src="' + r['post'][2] + '" alt="здесь должна была быть картинка, но не нашлась" class="img-fluid">' +
-                '<input id="child-img-id" type="hidden" value="' + r['post'][0] + '"/>');
-            $("#actionDelete").attr('href', '/del_post/'+ r['post'][0]);
-        });
-        $.get('/api/likes/' + pid, function( r ) {
-            $("#like-counter").text( r['count'] );
-            if (r['your'] == 1) {
-                $("#like-icon").removeClass('far');
-                $("#like-icon").addClass('fas');
-                $("#like-icon").removeClass('text-dark');
-                $("#like-icon").addClass('text-danger');
-                $("#like-icon").attr( 'onclick', 'del_like()' );
-            } else {
-                $("#like-icon").removeClass('fas');
-                $("#like-icon").addClass('far');
-                $("#like-icon").removeClass('text-danger');
-                $("#like-icon").addClass('text-dark');
-                $("#like-icon").attr( 'onclick', 'add_like()' );
-            }
-        })
-      }
-      function back2parent(){
-        $("#carousel-item-parent").addClass('active');
-        $("#carousel-item-child").removeClass('active');
-      }
-      function add_like() {
-        $("#like-icon").removeClass('far');
-        $("#like-icon").addClass('fas');
-        $("#like-icon").removeClass('text-dark');
-        $("#like-icon").addClass('text-danger');
-        $("#like-icon").attr( 'onclick', 'del_like()' );
-        post_id = $("#child-img-id").attr('value');
-        $.post('/api/likes/' + post_id, function( r ) {
-            $("#like-counter").text( r['count'] );
-        })
-      }
-
-      function del_like() {
-        $("#like-icon").removeClass('fas');
-        $("#like-icon").addClass('far');
-        $("#like-icon").removeClass('text-danger');
-        $("#like-icon").addClass('text-dark');
-        $("#like-icon").attr( 'onclick', 'add_like()' );
-        $("#like-counter").text( '' );
-        post_id = $("#child-img-id").attr('value');
-        $.ajax({
-            url: '/api/likes/' + post_id,
-            type: 'DELETE',
-            success: function( r ) {
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <title>{{ title }}</title>
+        <style>
+        h1 {
+            margin-bottom: 30px
+        }
+        #img-list-item {
+            width: 300px;
+            height: 300px;
+            cursor: pointer;
+        }
+        #main-photo {
+            max-height: 150px;
+            clip-path: circle(43%);
+        }
+        #main-photo-child {
+            max-height: 50px;
+            clip-path: circle(50%);
+        }
+        #back-arrow{
+            cursor: pointer;
+        }
+        .cursor-pointer {
+            cursor: pointer;
+        }
+        </style>
+        <script>
+        // функция получения данных публикации
+        function show_post(pid){
+            // переключаем карусель на второй (дочерний) экран
+            $("#carousel-item-parent").removeClass('active');
+            $("#carousel-item-child").addClass('active');
+            // получаем данные самой публикации через запрос GET
+            $.get( "/api/posts/"+pid, function( r ) {
+                // добавляем картинку на место
+                $("#child-img").html('<img src="' + r['post'][2] + '" alt="здесь должна была быть картинка, но не нашлась" class="img-fluid">');
+                // также добавляем скрытое поле, хранящее ID публикации
+                $("#child-img").append('<input id="child-img-id" type="hidden" value="' + r['post'][0] + '"/>');
+                // добавляем URL удаления поста в кнопку "Да" модального окна
+                $("#actionDelete").attr('href', '/del_post/'+ r['post'][0]);
+            });
+            // получаем данные лайков
+            $.get('/api/likes/' + pid, function( r ) {
                 $("#like-counter").text( r['count'] );
-            }
-        });
-      }
-  </script>
-</head>
-  <body>
+                if (r['your'] == 1) {
+                    $("#like-icon").removeClass('far');
+                    $("#like-icon").addClass('fas');
+                    $("#like-icon").removeClass('text-dark');
+                    $("#like-icon").addClass('text-danger');
+                    $("#like-icon").attr( 'onclick', 'del_like()' );
+                } else {
+                    $("#like-icon").removeClass('fas');
+                    $("#like-icon").addClass('far');
+                    $("#like-icon").removeClass('text-danger');
+                    $("#like-icon").addClass('text-dark');
+                    $("#like-icon").attr( 'onclick', 'add_like()' );
+                }
+            })
+            get_comments(pid);
+        }
+
+        // функция получения комментов
+        function get_comments(pid) {
+            // посылаем GET запрос
+            $.get('/api/comments/' + pid, function(r) {
+                // накопитель списка комментов
+                content = '';
+                // бежим по списку комментов
+                r['comments'].forEach(function(comment){
+                    if (comment[4] != '') {
+                        content += '<div class="row border-bottom">';
+                        content += '<div class="col-2 h5 font-weight-bold text-right">' + comment[3] + '</div>';
+                        content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + '</div>';
+                        if ( comment[2] == {{session['userid']}} && comment[0] >= 0 ) {
+                            content += '<div class="col-1 text-center"><a onclick="del_comment(' + comment[0] + ')"><i class="fas fa-trash-alt"></i></a></div>';
+                        }
+                        content += '</div>';
+                    }
+                    // добавляем получившийся список к картинке
+                    $('#child-comments').html(content);
+                })
+            })
+        }
+
+        // функция возврата в основной экран карусели
+        function back2parent(){
+            $("#carousel-item-parent").addClass('active');
+            $("#carousel-item-child").removeClass('active');
+        }
+
+        // функция добавления лайка
+        function add_like() {
+            $("#like-icon").removeClass('far');
+            $("#like-icon").addClass('fas');
+            $("#like-icon").removeClass('text-dark');
+            $("#like-icon").addClass('text-danger');
+            $("#like-icon").attr( 'onclick', 'del_like()' );
+            post_id = $("#child-img-id").val();
+            // посылаем запрос POST
+            $.post('/api/likes/' + post_id, function( r ) {
+                $("#like-counter").text( r['count'] );
+            })
+        }
+
+        // функция отмены лайка
+        function del_like() {
+            $("#like-icon").removeClass('fas');
+            $("#like-icon").addClass('far');
+            $("#like-icon").removeClass('text-danger');
+            $("#like-icon").addClass('text-dark');
+            $("#like-icon").attr( 'onclick', 'add_like()' );
+            $("#like-counter").text( '' );
+            post_id = $("#child-img-id").val();
+            // делаем запрос через AJAX, потому как браузер не умеет DELETE
+            $.ajax({
+                url: '/api/likes/' + post_id,
+                type: 'DELETE',
+                success: function( r ) {
+                    $("#like-counter").text( r['count'] );
+                }
+            });
+        }
+
+        // функция добавления коммента
+        function send_comment() {
+            post_id = $("#child-img-id").val();
+            comment_text = $("#child-comment-text").val();
+            $.post('/api/comments/' + post_id, { comment: comment_text } , function( r ) {
+                get_comments(post_id);
+                $("#child-comment-text").val('');
+            })
+        }
+
+        // функция удаления коммента
+        function del_comment(c_id) {
+            post_id = $("#child-img-id").val();
+            $.ajax({
+                url: '/api/comments/' + post_id,
+                type: 'DELETE',
+                success: function( r ) {
+                    get_comments(post_id);
+                    alert('deleted' + c_id);
+                }
+            });
+        }
+        </script>
+    </head>
+    <body>
     <!-- начало модального окна для удаления публикаций -->
     <div class="modal" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="deleteModalLabel">Предупреждение</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body"> Вы уверены, что хотите удалить публикацию? </div>
-          <div class="modal-footer">
-            <a type="button" href="#" class="btn btn-secondary" data-dismiss="modal">Нет</a>
-            <a type="button" href="#" id="actionDelete" class="btn btn-primary">Да</a>
-          </div>
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Предупреждение</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            <div class="modal-body"> Вы уверены, что хотите удалить публикацию? </div>
+                <div class="modal-footer">
+                    <a type="button" href="#" class="btn btn-secondary" data-dismiss="modal">Нет</a>
+                    <a type="button" href="#" id="actionDelete" class="btn btn-primary">Да</a>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
     <!-- конец модального окна для удаления публикаций -->
     <header>
-      <nav class="navbar navbar-light bg-light">
-        <i class="fab fa-instagram fa-2x d-flex justify-content-start align-self-center mr-2"></i>
-        <a class="navbar-brand d-flex justify-content-start" href="/">Instagram</a>
-    {% if "username" in session %}
-          <form class="form-inline my-2 my-lg-0 d-flex justify-content-start mr-auto">
-              <input class="form-control mr-sm-2" type="search" placeholder="Найти пользователя" aria-label="Найти пользователя">
-              <button class="btn btn-outline-primary my-2 my-sm-0" type="submit">Найти</button>
-          </form>
-        <a class="navbar-brand d-flex justify-content-end" href="/">{{session['username']}}
-        {% if session['admin'] == 1 %}(admin){% endif %}
-        </a>
-        <a class="btn btn-outline-primary my-2 my-sm-0 d-flex justify-content-end" type="submit" href="/logout">Выйти</a>
-    {% endif %}
-      </nav>
+        <nav class="navbar navbar-light bg-light">
+            <i class="fab fa-instagram fa-2x d-flex justify-content-start align-self-center mr-2"></i>
+            <a class="navbar-brand d-flex justify-content-start mr-auto" href="/">Instagram</a>
+        {% if "userid" in session %}
+            <form class="form-inline my-2 my-lg-0 d-flex justify-content-start mr-auto">
+                <input class="form-control mr-sm-2 d-flex justify-content-start mr-auto" type="search" placeholder="Найти пользователя" aria-label="Найти пользователя">
+                <button class="btn btn-outline-primary my-2 my-sm-0 d-flex justify-content-start mr-auto" type="submit">Найти</button>
+            </form>
+            <a class="navbar-brand d-flex justify-content-end" href="/">{{ user_info['username'] }}</a>
+            <a class="btn btn-outline-primary my-2 my-sm-0 d-flex justify-content-end" type="submit" href="/logout">Выйти</a>
+        {% endif %}
+        </nav>
     </header>
     <!-- Begin page content -->
     <main role="main" class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} mt-4" role="alert">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} mt-4" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
         {% endwith %}
         {% block content %}{% endblock %}
     </main>
@@ -140,5 +199,5 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
     <script defer src="https://use.fontawesome.com/releases/v5.7.2/js/all.js" integrity="sha384-0pzryjIRos8mFBWMzSSZApWtPl/5++eIfzYmTgBBmXYdhvxPc+XcFEk+zJwDgWbP" crossorigin="anonymous"></script>
-  </body>
+    </body>
 </html>
