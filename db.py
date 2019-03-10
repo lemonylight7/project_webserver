@@ -87,11 +87,11 @@ class UsersModel:
                              main_photo TEXT
                              )''')
         cursor.execute('''INSERT INTO users (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', ('ermakova', 'pass', 0, 'no_photo.png'))
+                          VALUES (?,?,?,?)''', ('ermakova', 'pass', 0, 'static/img/no_photo.png'))
         cursor.execute('''INSERT INTO users (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', ('avokamre', 'ssap', 0, 'no_photo.png'))
+                          VALUES (?,?,?,?)''', ('avokamre', 'ssap', 0, 'static/img/no_photo.png'))
         cursor.execute('''INSERT INTO users (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', ('ne_admin', 'ne_admin', 0, 'no_photo.png'))
+                          VALUES (?,?,?,?)''', ('ne_admin', 'ne_admin', 0, 'static/img/no_photo.png'))
         cursor.close()
         self.connection.commit()
 
@@ -127,6 +127,12 @@ class UsersModel:
                        (user_name, password_hash))
         row = cursor.fetchone()
         return (True, row[0]) if row else (False,)
+
+    def update_user_info(self, user_id, key, value):
+        cursor = self.connection.cursor()
+        cursor.execute('''UPDATE users SET {} = ? WHERE id = ?'''.format(key), (str(value), str(user_id)))
+        cursor.close()
+        self.connection.commit()
 
 
 class SubsModel:
@@ -215,5 +221,51 @@ class LikesModel:
         cursor = self.connection.cursor()
         cursor.execute('''DELETE FROM likes WHERE post_id = ? and user_id = ?''',
                             (str(post_id),str(user_id)))
+        cursor.close()
+        self.connection.commit()
+
+class CommentsModel:
+    def __init__(self, connection):
+        self.connection = connection
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' and name='comments'")
+        row = cursor.fetchone()
+        if row is None:
+            self.init_table()
+
+    def init_table(self):
+        cursor = self.connection.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS comments
+                            (
+                             id INTEGER PRIMARY KEY AUTOINCREMENT,
+                             post_id INTEGER,
+                             user_id INTEGER,
+                             comment TEXT,
+                             pub_date INTEGER
+                             )''')
+        cursor.close()
+        self.connection.commit()
+
+    def insert(self, post_id, user_id, comment):
+        cursor = self.connection.cursor()
+        pub_date = round(datetime.timestamp(datetime.now()))
+        cursor.execute('''INSERT INTO comments
+                          (post_id, user_id, comment, pub_date)
+                          VALUES (?,?,?,?)''', (str(post_id), str(user_id), comment, pub_date))
+        cursor.close()
+        self.connection.commit()
+
+    def get(self, post_id):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT -1, p.id, u.id, u.user_name, p.title, p.pub_date FROM posts p, users u WHERE p.id = ? and p.user_id=u.id", (str(post_id),))
+        post_info = cursor.fetchone()
+        rows = [post_info]
+        cursor.execute("SELECT c.id, c.post_id, c.user_id, u.user_name, c.comment, c.pub_date FROM comments c, users u WHERE c.post_id = ? and c.user_id=u.id ORDER BY c.id", (str(post_id),))
+        rows = rows + cursor.fetchall()
+        return rows
+
+    def delete(self, comment_id):
+        cursor = self.connection.cursor()
+        cursor.execute('''DELETE FROM comments WHERE id = ?''', (comment_id,))
         cursor.close()
         self.connection.commit()
