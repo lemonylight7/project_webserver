@@ -65,6 +65,15 @@ class Posts(Resource):
         post = PostsModel(db.get_connection()).get(post_id)
         return jsonify({'post': post})
 
+    def post(self, post_id):
+        abort_if_post_not_found(post_id)
+        abort_if_not_authorized()
+        parser = reqparse.RequestParser()
+        parser.add_argument('title')
+        args = parser.parse_args()
+        PostsModel(db.get_connection()).update_title(post_id, args['title'])
+        return jsonify({'success': 'OK'})
+
     def delete(self, post_id):
         abort_if_post_not_found(post_id)
         abort_if_not_authorized()
@@ -119,7 +128,7 @@ class Comments(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('comment_id')
         args = parser.parse_args()
-        CommentsModel(db.get_connection()).delete(args['comment_id'])
+        CommentsModel(db.get_connection()).delete(args['comment_id'], session['userid'])
         return jsonify({'success': 'OK'})
 
 api.add_resource(Comments, '/api/comments/<int:post_id>')
@@ -206,7 +215,6 @@ def change_info():
     users = UsersModel(db.get_connection())
     if form.validate_on_submit():
         if not users.get_by_name(form.user_name.data):
-            print(form.main_photo.data)
             if form.main_photo.data != '':
                 f = request.files['main_photo']
                 save_filename, thmb_filename = save_file(f)
