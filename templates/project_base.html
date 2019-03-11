@@ -28,6 +28,9 @@
         .cursor-pointer {
             cursor: pointer;
         }
+        .hidden {
+            display: none !important
+        }
         </style>
         <script>
         // функция получения данных публикации
@@ -62,29 +65,6 @@
                 }
             })
             get_comments(pid);
-        }
-
-        // функция получения комментов
-        function get_comments(pid) {
-            // посылаем GET запрос
-            $.get('/api/comments/' + pid, function(r) {
-                // накопитель списка комментов
-                content = '';
-                // бежим по списку комментов
-                r['comments'].forEach(function(comment){
-                    if (comment[4] != '') {
-                        content += '<div class="row border-bottom">';
-                        content += '<div class="col-2 h5 font-weight-bold text-right">' + comment[3] + '</div>';
-                        content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + '</div>';
-                        if ( comment[2] == {{session['userid']}} && comment[0] >= 0 ) {
-                            content += '<div class="col-1 text-center"><a onclick="del_comment(' + comment[0] + ')"><i class="fas fa-trash-alt"></i></a></div>';
-                        }
-                        content += '</div>';
-                    }
-                    // добавляем получившийся список к картинке
-                    $('#child-comments').html(content);
-                })
-            })
         }
 
         // функция возврата в основной экран карусели
@@ -126,6 +106,62 @@
             });
         }
 
+        // функция отображения поля редактирования описания публикации
+        function show_title_edit() {
+            $("#child-title-div-2").addClass("hidden")
+            $("#child-title-div-1").removeClass("hidden")
+        }
+        // функция для отправки нового значения описания на сервер
+        function change_title(pid) {
+            new_title = $("#child-title-input").val()
+            $.post('/api/posts/' + pid, {title: new_title}, function (r){
+                get_comments(pid)
+            })
+        }
+
+        // функция получения комментов
+        function get_comments(pid) {
+            // посылаем GET запрос
+            $.get('/api/comments/' + pid, function(r) {
+                // накопитель списка комментов
+                content = '';
+                // бежим по списку комментов
+                r['comments'].forEach(function(comment){
+                    if (comment[0] < 0) {
+                        if (comment[4] != '') {
+                            // скрытое поле для редактирования описания публикации
+                            content += '<div class="row hidden" id="child-title-div-1">';
+                            content += '<div class="col-2 h5 font-weight-bold text-right"></div>';
+                            content += '<div class="col-auto h5 w-75 text-left"><input type="text" id="child-title-input" value="' + comment[4] + '" class="form-control" placeholder="Описание публикации"></div>';
+                            content += '<div class="col-1 text-center text-primary"><a onclick="change_title(' + pid + ')"><i class="fas fa-check cursor-pointer"></i></a></div>';
+                            content += '</div>';
+                            // поле описания публикации
+                            content += '<div class="row border-bottom" id="child-title-div-2">';
+                            content += '<div class="col-2 h5 font-weight-bold text-right">' + comment[3] + '</div>';
+                            content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + '</div>';
+                            content += '</div>';
+                        } else {
+                            content += '<div class="row hidden" id="child-title-div-1">';
+                            content += '<div class="col-2 h5 font-weight-bold text-right"></div>';
+                            content += '<div class="col-auto h5 w-75 text-left"><input type="text" id="child-title-input" value="" class="form-control" placeholder="Описание публикации"></div>';
+                            content += '<div class="col-1 text-center text-primary"><a onclick="change_title(' + pid + ')"><i class="fas fa-check cursor-pointer"></i></a></div>';
+                            content += '</div>';
+                        }
+                    } else if (comment[4] != '') {
+                        content += '<div class="row border-bottom">';
+                        content += '<div class="col-2 h5 font-weight-bold text-right">' + comment[3] + '</div>';
+                        content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + '</div>';
+                        if ( comment[2] == {{session['userid']}} && comment[0] >= 0 ) {
+                            content += '<div class="col-1 text-center"><a onclick="del_comment(' + comment[0] + ')"><i class="fas fa-trash-alt cursor-pointer"></i></a></div>';
+                        }
+                        content += '</div>';
+                    }
+                    // добавляем получившийся список к картинке
+                    $('#child-comments').html(content);
+                })
+            })
+        }
+
         // функция добавления коммента
         function send_comment() {
             post_id = $("#child-img-id").val();
@@ -142,9 +178,9 @@
             $.ajax({
                 url: '/api/comments/' + post_id,
                 type: 'DELETE',
+                data: { comment_id: c_id },
                 success: function( r ) {
                     get_comments(post_id);
-                    alert('deleted' + c_id);
                 }
             });
         }
