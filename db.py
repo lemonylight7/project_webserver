@@ -66,6 +66,12 @@ class PostsModel:
         cursor.close()
         self.connection.commit()
 
+    def update_title(self, post_id, title):
+        cursor = self.connection.cursor()
+        cursor.execute('''UPDATE posts SET title = ? WHERE id = ?''', (title, post_id))
+        cursor.close()
+        self.connection.commit()
+
 
 class UsersModel:
     def __init__(self, connection):
@@ -257,15 +263,15 @@ class CommentsModel:
 
     def get(self, post_id):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT -1, p.id, u.id, u.user_name, p.title, p.pub_date FROM posts p, users u WHERE p.id = ? and p.user_id=u.id", (str(post_id),))
+        cursor.execute("SELECT -1, p.id, u.id, u.user_name, p.title, p.pub_date FROM posts p, users u WHERE p.id = ? AND p.user_id=u.id", (str(post_id),))
         post_info = cursor.fetchone()
         rows = [post_info]
         cursor.execute("SELECT c.id, c.post_id, c.user_id, u.user_name, c.comment, c.pub_date FROM comments c, users u WHERE c.post_id = ? and c.user_id=u.id ORDER BY c.id", (str(post_id),))
         rows = rows + cursor.fetchall()
         return rows
 
-    def delete(self, comment_id):
+    def delete(self, comment_id, user_id):
         cursor = self.connection.cursor()
-        cursor.execute('''DELETE FROM comments WHERE id = ?''', (comment_id,))
+        cursor.execute('''DELETE FROM comments WHERE id = ? AND user_id = ?''', (comment_id, user_id))
         cursor.close()
         self.connection.commit()
