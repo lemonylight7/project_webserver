@@ -166,6 +166,17 @@ class SubsModel:
         cursor.close()
         self.connection.commit()
 
+    def subscribe(self, subject, object):
+        cursor = self.connection.cursor()
+        cursor.execute('''INSERT INTO subscribers (subject, object)
+                                          VALUES (?, ?)''', (subject, object))
+        self.connection.commit()
+
+    def unsubscribe(self, subject, object):
+        cursor = self.connection.cursor()
+        cursor.execute('''DELETE FROM subscribers WHERE subject = ? and object = ?''', (subject, object))
+        self.connection.commit()
+
     def get_subscriptions(self, user_id):
         cursor = self.connection.cursor()
         cursor.execute("SELECT object FROM subscribers WHERE subject = ?", (user_id,))
@@ -177,6 +188,14 @@ class SubsModel:
         cursor.execute("SELECT subject FROM subscribers WHERE object = ?", (user_id,))
         row = cursor.fetchall()
         return row
+
+    def check_subscribed(self, subject, object):
+        cursor = self.connection.cursor()
+        cursor.execute('''SELECT 1 FROM subscribers WHERE subject = ? and object = ?''', (subject, object))
+        row = cursor.fetchone()
+        if row is not None:
+            return 1
+        return 0
 
 
 class LikesModel:
