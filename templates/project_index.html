@@ -6,13 +6,25 @@
       <div class="carousel-inner">
         <div class="carousel-item active" id="carousel-item-parent">
             <img src="{{user_info['main_photo']}}" alt="здесь должна была быть картинка, но не нашлась" id="main-photo" class="ml-5">
-            <span class="h1 ml-3">{{ user_info['username'] }}</span>
-            <div class="text-center">
-                <div class="btn-group">
-                    <a href="/upload_photo" class="btn btn-outline-primary btn-lg mb-4 rounded" role="button">Добавить фото</a>
-                    <a href="/change_info" class="btn btn-outline-primary btn-lg mb-4 ml-5 rounded" role="button">Редактировать профиль</a>
+            <span class="h1 ml-3">{{ user_info['username'] }}<span class="h4 badge badge-pill badge-secondary user-stats">Light</span></span>
+            {% if user_info['username'] == sess_info['username'] %}
+                <div class="text-center">
+                    <div class="btn-group">
+                        <a href="/upload_photo" class="btn btn-outline-primary btn-lg mb-4 rounded" role="button">Добавить фото</a>
+                        <a href="/change_info" class="btn btn-outline-primary btn-lg mb-4 ml-5 rounded" role="button">Редактировать профиль</a>
+                    </div>
                 </div>
-            </div>
+            {% else %}
+                <div class="text-center">
+                    <div class="btn-group">
+                        {% if user_info['subscribed'] == 0 %}
+                        <button class="btn btn-primary btn-lg mb-4 rounded" action="subscribe" id="sub-button" onclick="sub_unsub('{{ user_info['userid'] }}')">Подписаться</button>
+                        {% else %}
+                        <button class="btn btn-outline-primary btn-lg mb-4 rounded" action="unsubscribe" id="sub-button" onclick="sub_unsub('{{ user_info['userid'] }}')">Отписаться</button>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
 
             <div class="text-center">
             {% for post in posts %}

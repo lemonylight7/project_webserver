@@ -29,7 +29,11 @@
             cursor: pointer;
         }
         .hidden {
-            display: none !important
+            display: none !important;
+        }
+        .user-stats {
+            position: relative;
+            bottom: -50px;
         }
         </style>
         <script>
@@ -184,6 +188,40 @@
                 }
             });
         }
+        // функция поиска пользователей
+        function search_user() {
+            username = $('#navbar-search').val()
+            if (username == '') return false;
+            $.get('/api/users/0', {user_name: username}, function(r){
+                if ( r['user'] ) {
+                    window.location = '/@' + r['user'][1]
+                } else {
+                    $('#navbar-search').popover('enable')
+                    $('#navbar-search').popover('show')
+                    window.setTimeout(function() {
+                        $('#navbar-search').popover('hide');
+                        $('#navbar-search').popover('disable');
+                    }, 5000)
+                }
+            })
+        }
+        // функция подписки/отписки
+        function sub_unsub(user_id) {
+            user_action = $('#sub-button').attr('action')
+            $.post('/api/users/' + user_id, {action: user_action}, function(r){
+                if (r['success'] == 'OK') {
+                    $('#sub-button').attr('action', r['next']);
+                    $('#sub-button').text(r['text'])
+                    if (user_action == 'subscribe') {
+                        $('#sub-button').removeClass('btn-primary')
+                        $('#sub-button').addClass('btn-outline-primary')
+                    } else if (user_action == 'unsubscribe') {
+                        $('#sub-button').removeClass('btn-outline-primary')
+                        $('#sub-button').addClass('btn-primary')
+                    }
+                }
+            })
+        }
         </script>
     </head>
     <body>
@@ -211,11 +249,13 @@
             <i class="fab fa-instagram fa-2x d-flex justify-content-start align-self-center mr-2"></i>
             <a class="navbar-brand d-flex justify-content-start mr-auto" href="/">Instagram</a>
         {% if "userid" in session %}
-            <form class="form-inline my-2 my-lg-0 d-flex justify-content-start mr-auto">
-                <input class="form-control mr-sm-2 d-flex justify-content-start mr-auto" type="search" placeholder="Найти пользователя" aria-label="Найти пользователя">
-                <button class="btn btn-outline-primary my-2 my-sm-0 d-flex justify-content-start mr-auto" type="submit">Найти</button>
-            </form>
-            <a class="navbar-brand d-flex justify-content-end" href="/">{{ user_info['username'] }}</a>
+            <div class="my-2 my-lg-0 d-flex justify-content-start mr-auto">
+                <input class="form-control mr-sm-2 d-flex justify-content-start mr-auto" id="navbar-search"
+                       type="search" placeholder="Найти пользователя" aria-label="Найти пользователя"
+                        data-placement="bottom" data-content="Пользователь не найден">
+                <button class="btn btn-outline-primary my-2 my-sm-0 d-flex justify-content-start mr-auto" onclick="search_user()">Найти</button>
+            </div>
+            <a class="navbar-brand d-flex justify-content-end" href="/">{{ sess_info['username'] }}</a>
             <a class="btn btn-outline-primary my-2 my-sm-0 d-flex justify-content-end" type="submit" href="/logout">Выйти</a>
         {% endif %}
         </nav>
