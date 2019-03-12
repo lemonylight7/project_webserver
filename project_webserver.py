@@ -1,9 +1,7 @@
-from flask import Flask, session, redirect, request, render_template, flash, url_for, jsonify
-from flask_wtf.file import FileRequired
+from flask import Flask, session, redirect, request, render_template, flash, jsonify
 from flask_restful import reqparse, abort, Api, Resource
 from datetime import datetime
-from werkzeug import secure_filename
-from db import DB, PostsModel, UsersModel, LikesModel, CommentsModel
+from db import DB, PostsModel, UsersModel, LikesModel, CommentsModel, SubsModel
 from project_forms import LoginForm, RegisterForm, UploadPhotoForm, ChangeInfoForm
 from PIL import Image
 import os
@@ -21,23 +19,20 @@ db = DB("project.db")
 def make_thumbnail(infile, outfile):
     im = Image.open(infile)
     xsize, ysize = im.size
-    print(xsize, ysize)
     if xsize > ysize:
         crop_size = (xsize/2 - ysize/2, 0, xsize/2 + ysize/2, ysize)
-        print('horizontal', (xsize/2 - ysize/2, 0, xsize/2 + ysize/2, ysize))
     else:
         crop_size = (0, ysize/2 - xsize/2, xsize, ysize/2 + xsize/2)
-        print('vertical', (0, ysize/2 - xsize/2, xsize, ysize/2 + xsize/2))
     im = im.crop(box=crop_size)
     im.thumbnail((300, 300))
     im.save(outfile)
 
 def save_file(f):
     save_filename = "static/img/usr_{0}/{1}_{2}".format(
-        session['userid'], round(datetime.timestamp(datetime.now())), secure_filename(f.filename)
+        session['userid'], round(datetime.timestamp(datetime.now())), f.filename
     )
     thmb_filename = "static/img/usr_{0}/thmb/{1}_{2}".format(
-        session['userid'], round(datetime.timestamp(datetime.now())), secure_filename(f.filename)
+        session['userid'], round(datetime.timestamp(datetime.now())), f.filename
     )
     os.makedirs('static/img/usr_{}'.format(session['userid']), exist_ok=True)
     os.makedirs('static/img/usr_{}/thmb'.format(session['userid']), exist_ok=True)
@@ -133,6 +128,33 @@ class Comments(Resource):
 
 api.add_resource(Comments, '/api/comments/<int:post_id>')
 
+class Users(Resource):
+    def get(self, user_id):
+        abort_if_not_authorized()
+        parser = reqparse.RequestParser()
+        parser.add_argument('user_name')
+        args = parser.parse_args()
+        user = UsersModel(db.get_connection()).get_by_name(args['user_name'])
+        return jsonify({'user': user})
+
+    def post(self, user_id):
+        abort_if_not_authorized()
+        parser = reqparse.RequestParser()
+        parser.add_argument('action')
+        args = parser.parse_args()
+        if args['action'] == 'subscribe':
+            SubsModel(db.get_connection()).subscribe(session['userid'], user_id)
+            next_act = 'unsubscribe'
+            text = 'Отписаться'
+        elif args['action'] == 'unsubscribe':
+            SubsModel(db.get_connection()).unsubscribe(session['userid'], user_id)
+            next_act = 'subscribe'
+            text = 'Подписаться'
+        return jsonify({'success': 'OK', 'next': next_act, 'text': text})
+
+api.add_resource(Users, '/api/users/<user_id>')
+
+
 '''
 ---===###  Flask URL handlers  ###===---
 '''
@@ -163,7 +185,25 @@ def index():
     users = UsersModel(db.get_connection())
     user_data = users.get(session['userid'])
     user_info = {'username': user_data[1], 'main_photo': user_data[4]}
-    return render_template('project_index.html', title='Instagram', posts=all_posts, user_info=user_info)
+    return render_template('project_index.html', title='Instagram', posts=all_posts, user_info=user_info, sess_info=user_info)
+
+@app.route('/@<username>')
+def user_page(username):
+    if "userid" not in session:
+        return redirect('/login')
+    posts = PostsModel(db.get_connection())
+    users = UsersModel(db.get_connection())
+    subs = SubsModel(db.get_connection())
+    userid = users.get_by_name(username)[0]
+    all_posts = []
+    for i in posts.get_all(userid):
+        all_posts.append({'pub_date': datetime.fromtimestamp(i[5]).strftime('%d.%m.%Y %H:%M'),
+                         'title': i[1], 'thumb': i[3], 'userid': i[4], 'pid': i[0]})
+    user_data = users.get(userid)
+    user_info = {'username': user_data[1], 'main_photo': user_data[4], 'subscribed': subs.check_subscribed(session['userid'], userid), 'userid': user_data[0]}
+    user_data = users.get(session['userid'])
+    sess_info = {'username': user_data[1], 'main_photo': user_data[4]}
+    return render_template('project_index.html', title='Instagram', posts=all_posts, user_info=user_info, sess_info=sess_info)
 
 @app.route('/del_post/<pid>')
 def del_post(pid):
@@ -204,7 +244,7 @@ def upload_photo():
     users = UsersModel(db.get_connection())
     user_data = users.get(session['userid'])
     user_info = {'username': user_data[1], 'main_photo': user_data[4]}
-    return render_template('project_add_photos.html', form=form, user_info=user_info)
+    return render_template('project_add_photos.html', form=form, user_info=user_info, sess_info=user_info)
 
 @app.route('/change_info', methods=['GET', 'POST'])
 def change_info():
@@ -227,7 +267,7 @@ def change_info():
             form.username.errors.append('Пользователь с таким именем уже существует')
     user_data = users.get(session['userid'])
     user_info = {'username': user_data[1], 'main_photo': user_data[4]}
-    return render_template('project_change_info.html', form=form, user_info=user_info)
+    return render_template('project_change_info.html', form=form, user_info=user_info, sess_info=user_info)
 
 @app.route('/logout')
 def logout():
