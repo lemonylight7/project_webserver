@@ -40,7 +40,7 @@ class PostsModel:
         pub_date = round(datetime.timestamp(datetime.now()))
         cursor.execute('''INSERT INTO posts
                           (title, path, thmb_path, user_id, pub_date)
-                          VALUES (?,?,?,?,?)''', (title, path, thmb_path, str(user_id), pub_date))
+                          VALUES (?,?,?,?,?)''', (title, path, thmb_path, user_id, pub_date))
         cursor.close()
         self.connection.commit()
 
@@ -54,7 +54,7 @@ class PostsModel:
         cursor = self.connection.cursor()
         if user_id:
             cursor.execute("SELECT * FROM posts WHERE user_id = ? ORDER BY pub_date DESC",
-                           (str(user_id),))
+                           (user_id,))
         else:
             cursor.execute("SELECT * FROM posts ORDER BY pub_date DESC")
         rows = cursor.fetchall()
@@ -71,6 +71,12 @@ class PostsModel:
         cursor.execute('''UPDATE posts SET title = ? WHERE id = ?''', (title, post_id))
         cursor.close()
         self.connection.commit()
+
+    def get_count(self, user_id):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM posts WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        return row[0]
 
 
 class UsersModel:
@@ -111,7 +117,7 @@ class UsersModel:
 
     def get(self, user_id):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE id = ?", (str(user_id),))
+        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
         row = cursor.fetchone()
         return row
 
@@ -136,7 +142,7 @@ class UsersModel:
 
     def update_user_info(self, user_id, key, value):
         cursor = self.connection.cursor()
-        cursor.execute('''UPDATE users SET {} = ? WHERE id = ?'''.format(key), (str(value), str(user_id)))
+        cursor.execute('''UPDATE users SET {} = ? WHERE id = ?'''.format(key), (str(value), user_id))
         cursor.close()
         self.connection.commit()
 
@@ -179,15 +185,15 @@ class SubsModel:
 
     def get_subscriptions(self, user_id):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT object FROM subscribers WHERE subject = ?", (user_id,))
-        row = cursor.fetchall()
-        return row
+        cursor.execute("SELECT COUNT(*) FROM subscribers WHERE subject = ?", (user_id,))
+        row = cursor.fetchone()
+        return row[0]
 
     def get_followers(self, user_id):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT subject FROM subscribers WHERE object = ?", (user_id,))
-        row = cursor.fetchall()
-        return row
+        cursor.execute("SELECT COUNT(*) FROM subscribers WHERE object = ?", (user_id,))
+        row = cursor.fetchone()
+        return row[0]
 
     def check_subscribed(self, subject, object):
         cursor = self.connection.cursor()
@@ -222,20 +228,20 @@ class LikesModel:
         pub_date = round(datetime.timestamp(datetime.now()))
         cursor.execute('''INSERT INTO likes
                           (post_id, user_id)
-                          VALUES (?,?)''', (str(post_id), str(user_id)))
+                          VALUES (?,?)''', (str(post_id), user_id))
         cursor.close()
         self.connection.commit()
 
     def get_count(self, post_id):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT count() FROM likes WHERE post_id = ?", (str(post_id),))
+        cursor.execute("SELECT count(*) FROM likes WHERE post_id = ?", (str(post_id),))
         row = cursor.fetchone()
         return row[0]
 
     def get_your(self, post_id, user_id):
         cursor = self.connection.cursor()
         cursor.execute("SELECT 1 FROM likes WHERE post_id = ? and user_id = ?",
-                           (str(post_id), str(user_id)))
+                           (str(post_id), user_id))
         rows = cursor.fetchone()
         if rows is None:
             return 0
@@ -245,7 +251,7 @@ class LikesModel:
     def delete(self, post_id, user_id):
         cursor = self.connection.cursor()
         cursor.execute('''DELETE FROM likes WHERE post_id = ? and user_id = ?''',
-                            (str(post_id),str(user_id)))
+                            (str(post_id),user_id))
         cursor.close()
         self.connection.commit()
 
@@ -276,16 +282,18 @@ class CommentsModel:
         pub_date = round(datetime.timestamp(datetime.now()))
         cursor.execute('''INSERT INTO comments
                           (post_id, user_id, comment, pub_date)
-                          VALUES (?,?,?,?)''', (str(post_id), str(user_id), comment, pub_date))
+                          VALUES (?,?,?,?)''', (str(post_id), user_id, comment, pub_date))
         cursor.close()
         self.connection.commit()
 
     def get(self, post_id):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT -1, p.id, u.id, u.user_name, p.title, p.pub_date FROM posts p, users u WHERE p.id = ? AND p.user_id=u.id", (str(post_id),))
+        cursor.execute("SELECT -1, p.id, u.id, u.user_name, p.title, p.pub_date FROM posts p,"
+                       " users u WHERE p.id = ? AND p.user_id=u.id", (str(post_id),))
         post_info = cursor.fetchone()
         rows = [post_info]
-        cursor.execute("SELECT c.id, c.post_id, c.user_id, u.user_name, c.comment, c.pub_date FROM comments c, users u WHERE c.post_id = ? and c.user_id=u.id ORDER BY c.id", (str(post_id),))
+        cursor.execute("SELECT c.id, c.post_id, c.user_id, u.user_name, c.comment, c.pub_date FROM comments c,"
+                       " users u WHERE c.post_id = ? and c.user_id=u.id ORDER BY c.id", (str(post_id),))
         rows = rows + cursor.fetchall()
         return rows
 
