@@ -12,7 +12,6 @@
                     {{ error }}
                 </div>
             {% endfor %}
-        </p>
         <p>
             {{ form.password.label }}<br>
             {{ form.password }}<br>
@@ -21,7 +20,6 @@
                     {{ error }}
                 </div>
             {% endfor %}
-        </p>
         {% if login_error != '' %}
                 <div class="alert alert-danger" role="alert">
                     {{ login_error }}

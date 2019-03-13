@@ -31,9 +31,18 @@
         .hidden {
             display: none !important;
         }
-        .user-stats {
+        .label1 {
+            display: inline-block;
             position: relative;
-            bottom: -50px;
+            bottom: -30px;
+        }
+        .label2 {
+            display: inline-block;
+        }
+        .comment-time {
+            color: grey;
+            font-size: 12pt;
+            margin-left: 2rem;
         }
         </style>
         <script>
@@ -142,7 +151,7 @@
                             // поле описания публикации
                             content += '<div class="row border-bottom" id="child-title-div-2">';
                             content += '<div class="col-2 h5 font-weight-bold text-right">' + comment[3] + '</div>';
-                            content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + '</div>';
+                            content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + ' <span class="comment-time">'+ timeConverter(comment[5]) +'</span></div>';
                             content += '</div>';
                         } else {
                             content += '<div class="row hidden" id="child-title-div-1">';
@@ -154,7 +163,7 @@
                     } else if (comment[4] != '') {
                         content += '<div class="row border-bottom">';
                         content += '<div class="col-2 h5 font-weight-bold text-right">' + comment[3] + '</div>';
-                        content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + '</div>';
+                        content += '<div class="col-auto h5 w-75 text-left">' + comment[4] + ' <span class="comment-time">'+ timeConverter(comment[5]) +'</span></div>';
                         if ( comment[2] == {{session['userid']}} && comment[0] >= 0 ) {
                             content += '<div class="col-1 text-center"><a onclick="del_comment(' + comment[0] + ')"><i class="fas fa-trash-alt cursor-pointer"></i></a></div>';
                         }
@@ -188,6 +197,7 @@
                 }
             });
         }
+
         // функция поиска пользователей
         function search_user() {
             username = $('#navbar-search').val()
@@ -205,6 +215,7 @@
                 }
             })
         }
+
         // функция подписки/отписки
         function sub_unsub(user_id) {
             user_action = $('#sub-button').attr('action')
@@ -215,12 +226,42 @@
                     if (user_action == 'subscribe') {
                         $('#sub-button').removeClass('btn-primary')
                         $('#sub-button').addClass('btn-outline-primary')
+                        update_user_stats(user_id)
                     } else if (user_action == 'unsubscribe') {
                         $('#sub-button').removeClass('btn-outline-primary')
                         $('#sub-button').addClass('btn-primary')
+                        update_user_stats(user_id)
                     }
                 }
             })
+        }
+
+        // функция обновления статистики
+        function update_user_stats(user_id) {
+            $.get('/api/users/' + user_id, function(r) {
+                $('#badge-posts-count').text(r['posts_count']);
+                $('#badge-followers-count').text(r['followers_count']);
+                $('#badge-subscriptions-count').text(r['subscriptions_count']);
+            })
+        }
+
+        function addZero(i) {
+            if (i < 10) {
+                i = "0" + i;
+            }
+            return i;
+        }
+        function timeConverter(UNIX_timestamp){
+            var a = new Date(UNIX_timestamp * 1000);
+            var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var year = a.getFullYear();
+            var month = months[a.getMonth()];
+            var date = a.getDate();
+            var hour = addZero(a.getHours());
+            var min = addZero(a.getMinutes());
+            var sec = addZero(a.getSeconds());
+            var time = date + ' ' + month + ' ' + year + ' ' + hour + ':' + min + ':' + sec ;
+            return time;
         }
         </script>
     </head>
@@ -275,5 +316,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
     <script defer src="https://use.fontawesome.com/releases/v5.7.2/js/all.js" integrity="sha384-0pzryjIRos8mFBWMzSSZApWtPl/5++eIfzYmTgBBmXYdhvxPc+XcFEk+zJwDgWbP" crossorigin="anonymous"></script>
+    <script>
+        $(document).ready( function() {
+            update_user_stats({{ user_info['userid'] }});
+        });
+    </script>
+
     </body>
 </html>
