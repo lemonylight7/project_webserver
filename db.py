@@ -111,7 +111,7 @@ class UsersModel:
         cursor = self.connection.cursor()
         cursor.execute('''INSERT INTO users
                           (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', (user_name, password_hash, 0, 'no_photo.png'))
+                          VALUES (?,?,?,?)''', (user_name, password_hash, 0, 'static/img/no_photo.png'))
         cursor.close()
         self.connection.commit()
 
