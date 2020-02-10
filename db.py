@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class DB:
     def __init__(self, db_file):
@@ -111,7 +112,7 @@ class UsersModel:
         cursor = self.connection.cursor()
         cursor.execute('''INSERT INTO users
                           (user_name, password_hash, admin, main_photo)
-                          VALUES (?,?,?,?)''', (user_name, password_hash, 0, 'no_photo.png'))
+                          VALUES (?,?,?,?)''', (user_name, password_hash, 0, 'static/img/no_photo.png'))
         cursor.close()
         self.connection.commit()
 
@@ -133,12 +134,15 @@ class UsersModel:
         rows = cursor.fetchall()
         return rows
 
-    def exists(self, user_name, password_hash):
+    def exists(self, user_name, password):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE user_name = ? AND password_hash = ?",
-                       (user_name, password_hash))
+        cursor.execute("SELECT * FROM users WHERE user_name = ?",
+                       (user_name,))
         row = cursor.fetchone()
-        return (True, row[0]) if row else (False,)
+        if row:
+            if check_password_hash(row[2], password):
+                return (True, row[0])
+        return (False,)
 
     def update_user_info(self, user_id, key, value):
         cursor = self.connection.cursor()

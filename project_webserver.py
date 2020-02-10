@@ -4,6 +4,7 @@ from datetime import datetime
 from db import DB, PostsModel, UsersModel, LikesModel, CommentsModel, SubsModel
 from project_forms import LoginForm, RegisterForm, UploadPhotoForm, ChangeInfoForm
 from PIL import Image
+from werkzeug.security import generate_password_hash, check_password_hash
 import os
 
 app = Flask(__name__)
@@ -270,7 +271,8 @@ def register():
     if form.validate_on_submit():
         users = UsersModel(db.get_connection())
         if not users.get_by_name(form.username.data):
-            users.insert(form.username.data, form.password.data)
+            hashed_password = generate_password_hash(form.password.data)
+            users.insert(form.username.data, hashed_password)
             flash('Спасибо за регистрацию', 'success')
             return redirect('/login')
         else:
@@ -300,7 +302,11 @@ def change_info():
     if "userid" not in session:
         return redirect('/login')
     form = ChangeInfoForm()
-    keys = {'user_name': form.user_name.data, 'password_hash': form.password_hash.data}
+    if form.password_hash.data:
+        password_hash = generate_password_hash(form.password_hash.data)
+    else:
+        password_hash = ''
+    keys = {'user_name': form.user_name.data, 'password_hash': password_hash}
     users = UsersModel(db.get_connection())
     if form.validate_on_submit():
         if not users.get_by_name(form.user_name.data):
